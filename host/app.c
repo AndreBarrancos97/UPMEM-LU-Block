@@ -25,7 +25,6 @@
 // Pointer declaration
 static T* X;
 static T* Y;
-static T* Z;
 static T* Y_host;
 
 // Create input arrays
@@ -73,23 +72,31 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
 
     // Input size 
-    const unsigned int input_size = p.input_size; // Total input size 
-    printf("aaaaaaa %d \n",input_size);
+    const unsigned int input_size = p.input_size;         // Total input size 
+    printf("input_size =  %d \n",input_size);             //input_size = 10
+    printf("sizeof(T) =  %ld \n",sizeof(T));              // int32 = 4bytes
+
     const unsigned int input_size_8bytes = 
         ((input_size * sizeof(T)) % 8) != 0 ? roundup(input_size, 8) : input_size; // Total input size, 8-byte aligned
+    
+    printf("input_size_8bytes =  %d \n",input_size_8bytes);
+
     const unsigned int input_size_dpu = divceil(input_size, nr_of_dpus); // Input size per DPU (max.)
+
+    printf("input_size_dpu =  %d \n",input_size_dpu);
+
     const unsigned int input_size_dpu_8bytes = 
         ((input_size_dpu * sizeof(T)) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu; // Input size per DPU (max.), 8-byte aligned
+
+    printf("input_size_dpu_8bytes =  %d \n",input_size_dpu_8bytes);
 
     // Input/output allocation in host main memory
     X = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
     Y = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
-    Z = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
 
     Y_host = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
     T *bufferX = X;
     T *bufferY = Y;
-    T *bufferZ = Z;
 
     T alpha = p.alpha;
     unsigned int i = 0;
@@ -215,12 +222,11 @@ int main(int argc, char **argv) {
         }*/
         
         DPU_FOREACH(dpu_set, dpu, i) {
-	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferZ + input_size_dpu_8bytes * i));
+	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferY + input_size_dpu_8bytes * i));
         }
 
         DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T), input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
         
-        printf("asdadsa = %d \n", bufferZ[0]);
 #endif
         if(rep >= p.n_warmup)
             stop(&timer, 3); // Stop timer (DPU-CPU transfers)
@@ -276,13 +282,14 @@ int main(int argc, char **argv) {
     print(&timer, 2, p.n_reps);
     printf("DPU-CPU ");
     print(&timer, 3, p.n_reps);
-
+    printf("\n");
     // Check output
     bool status = true;
     for (i = 0; i < input_size; i++) {
+        printf("%d: %u -- %u\n", i, Y_host[i], Y[i]);
         if(Y_host[i] != Y[i]){ 
             status = false;
-            printf("%d: %u -- %u\n", i, Y_host[i], Y[i]);
+            //printf("%d: %u -- %u\n", i, Y_host[i], Y[i]);
         }
     }
     if (status) {
