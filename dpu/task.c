@@ -33,7 +33,7 @@ static void axpy(T *bufferY, T *bufferX, T alpha, unsigned int l_size) {
     //@@ INSERT AXPY CODE
     printf("l_size = %d \n",l_size);
     for (unsigned int i = 0; i < l_size; i++) {
-        bufferY[i] += (alpha * bufferX[i]);
+        bufferY[i] = ( bufferX[i]);
         //printf("bufferY[i] = %d \n",bufferY[i]);
     }
 
@@ -74,13 +74,13 @@ int main_kernel1() {
     uint32_t mram_base_addr_Y = (uint32_t)(DPU_MRAM_HEAP_POINTER + input_size_dpu_bytes_transfer);
 
     // Initialize a local cache in WRAM to store the MRAM block
-    /*
+    
     printf("input_size_dpu_bytes [%d] =  %d \n",tasklet_id, input_size_dpu_bytes);
     printf("input_size_dpu_bytes_transfer [%d] =  %d \n",tasklet_id, input_size_dpu_bytes_transfer);
     printf("base_tasklet [%d] =  %d \n",tasklet_id, base_tasklet);
     printf("BLOCK_SIZE_LOG2 [%d] =  %d \n",tasklet_id, BLOCK_SIZE_LOG2);
     printf("BLOCK_SIZE [%d] =  %d \n",tasklet_id, BLOCK_SIZE);
-    */
+    
 
     T *cache_X = (T *) mem_alloc(BLOCK_SIZE);   
     T *cache_Y = (T *) mem_alloc(BLOCK_SIZE);  
@@ -137,9 +137,9 @@ int main_kernel1() {
         }
         */
     }
-    //for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
-    //    printf("cache_Y = %d [%d] \n",cache_Y[i],tasklet_id);
-    //}
+    for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
+        printf("cache_Y = %d [%d] \n",cache_Y[i],tasklet_id);
+    }
 
 #if defined(CYCLES) || defined(INSTRUCTIONS)
     result->count += counter_stop(&count); // STOP TIMER

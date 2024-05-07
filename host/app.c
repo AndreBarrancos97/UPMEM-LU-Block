@@ -29,14 +29,13 @@ static T* Y_host;
 
 // Create input arrays
 static void read_input(T* A, T* B, unsigned int nr_elements) {
-    srand(0);
-    printf("nr_elements\t%u\n", nr_elements);
+
+    unsigned int test_file[64] = {43,7,8,6,4,6,7,3,10,44,3,8,1,10,4,7,1,7,46,7,2,9,8,10,3,1,3,39,8,6,10,3,3,9,10,8,46,7,2,3,10,4,2,10,5,48,9,5,6,1,4,7,2,1,30,4,3,1,7,2,6,6,5,31};
     for (unsigned int i = 0; i < nr_elements; i++) {
-        //A[i] = (T) (rand());
-        //B[i] = (T) (rand());
-        A[i] = (T) (i);
-        B[i] = (T) (i+10);
+        A[i] = test_file[i];
+        B[i] = test_file[i];
     }
+
 }
 
 // Compute output in the host for verification purposes
@@ -111,7 +110,7 @@ int main(int argc, char **argv) {
         // Compute output on CPU (verification purposes)
         if(rep >= p.n_warmup)
             start(&timer, 0, rep - p.n_warmup);
-        axpy_host(X, Y_host, alpha, input_size);
+        //axpy_host(X, Y_host, alpha, input_size);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
