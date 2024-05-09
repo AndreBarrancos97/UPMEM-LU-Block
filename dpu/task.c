@@ -34,6 +34,7 @@ static void axpy(T *bufferY, T *bufferX, T alpha, unsigned int l_size) {
     printf("l_size = %d \n",l_size);
     for (unsigned int i = 0; i < l_size; i++) {
         bufferY[i] = ( bufferX[i]);
+        //bufferY[i] = 1;
         //printf("bufferY[i] = %d \n",bufferY[i]);
     }
 
@@ -66,12 +67,13 @@ int main_kernel1() {
     uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size; // Input size per DPU in bytes
     uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size; // Transfer input size per DPU in bytes
     T alpha = DPU_INPUT_ARGUMENTS.alpha; // alpha (a in axpy)
-    printf("bbbbb %d \n", DPU_INPUT_ARGUMENTS.alpha);
+    printf("bbbbb %f \n", DPU_INPUT_ARGUMENTS.alpha);
 
     // Address of the current processing block in MRAM
     uint32_t base_tasklet = tasklet_id << BLOCK_SIZE_LOG2;
-    uint32_t mram_base_addr_X = (uint32_t)DPU_MRAM_HEAP_POINTER;
-    uint32_t mram_base_addr_Y = (uint32_t)(DPU_MRAM_HEAP_POINTER + input_size_dpu_bytes_transfer);
+    uint32_t mram_base_addr_A = (uint32_t)DPU_MRAM_HEAP_POINTER;
+    uint32_t mram_base_addr_U = (uint32_t)(DPU_MRAM_HEAP_POINTER + input_size_dpu_bytes_transfer);
+    uint32_t mram_base_addr_L = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*2));
 
     // Initialize a local cache in WRAM to store the MRAM block
     
@@ -82,8 +84,9 @@ int main_kernel1() {
     printf("BLOCK_SIZE [%d] =  %d \n",tasklet_id, BLOCK_SIZE);
     
 
-    T *cache_X = (T *) mem_alloc(BLOCK_SIZE);   
-    T *cache_Y = (T *) mem_alloc(BLOCK_SIZE);  
+    T *cache_A = (T *) mem_alloc(BLOCK_SIZE);   
+    T *cache_U = (T *) mem_alloc(BLOCK_SIZE);
+    T *cache_L = (T *) mem_alloc(BLOCK_SIZE); 
 
     /*
     Example:
@@ -119,16 +122,17 @@ int main_kernel1() {
         //printf("l_size_bytes = %d \n ", l_size_bytes);
         // Load cache with current MRAM block
         //@@ INSERT MRAM-WRAM TRANSFERS HERE
-        mram_read((__mram_ptr void const*) (mram_base_addr_X + byte_index), cache_X, l_size_bytes); 
-        mram_read((__mram_ptr void const*) (mram_base_addr_Y + byte_index), cache_Y, l_size_bytes);
+        mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes); 
+        mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);
+        mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);
 
         // Computer vector addition
         //@@ INSERT CALL TO AXPY FUNCTION HERE
-        axpy (cache_Y, cache_X, alpha,l_size_bytes >> DIV);
+        axpy (cache_L, cache_U, alpha,l_size_bytes >> DIV);
 
         // Write cache to current MRAM block
         //@@ INSERT WRAM-MRAM TRANSFER HERE
-        mram_write(cache_Y, (__mram_ptr void*) (mram_base_addr_Y + byte_index), l_size_bytes);
+        mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
         //printf("cache_Y = %d [%d] *** byte_index = %d *** l_size_bytes = %d\n",cache_Y[byte_index],tasklet_id,byte_index,l_size_bytes);
         /*if(tasklet_id == 0){
             for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
@@ -138,7 +142,7 @@ int main_kernel1() {
         */
     }
     for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
-        printf("cache_Y = %d [%d] \n",cache_Y[i],tasklet_id);
+        printf("cache_Y = %f [%d] \n",cache_L[i],tasklet_id);
     }
 
 #if defined(CYCLES) || defined(INSTRUCTIONS)
