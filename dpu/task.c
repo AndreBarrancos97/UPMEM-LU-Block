@@ -45,7 +45,7 @@ static void calc_L_matrix(T *bufferL, T *bufferU, T *bufferU_inv, T *bufferA, un
     //unsigned int j = tasklet_id;
     //for (int j = 0; j < size; j++) {
 		//if j is smaller than i, set l[j][i] to 0
-        printf("I= %d ******* J= %d \n",i,j);
+        //printf("I= %d ******* J= %d \n",i,j);
         //bufferL[j] = 10;
 		if (j < i)
 		{
@@ -127,12 +127,13 @@ int main_kernel1() {
 
     // Initialize a local cache in WRAM to store the MRAM block
     
+    /*
     printf("input_size_dpu_bytes [%d] =  %d \n",tasklet_id, input_size_dpu_bytes);
     printf("input_size_dpu_bytes_transfer [%d] =  %d \n",tasklet_id, input_size_dpu_bytes_transfer);
     printf("base_tasklet [%d] =  %d \n",tasklet_id, base_tasklet);
     printf("BLOCK_SIZE_LOG2 [%d] =  %d \n",tasklet_id, BLOCK_SIZE_LOG2);
     printf("BLOCK_SIZE [%d] =  %d \n",tasklet_id, BLOCK_SIZE);
-    
+    */
 
     T *cache_A = (T *) mem_alloc(BLOCK_SIZE);   
     T *cache_U = (T *) mem_alloc(BLOCK_SIZE);
@@ -189,10 +190,22 @@ int main_kernel1() {
         for(unsigned int i = 0; i<8;i++){
             mram_read((__mram_ptr void const*) (mram_base_addr_U_inv + (l_size_bytes*i)), cache_U_inv_v2, l_size_bytes);
             
-        calc_L_matrix(cache_L, cache_U, cache_U_inv_v2, cache_A, j, i);
-        //barrier_wait(&my_barrier);
-        //mram_read((__mram_ptr void const*) (mram_base_addr_A + (l_size_bytes*i)), cache_L_v2, l_size_bytes);
-        //calc_U_matrix(cache_L_v2, cache_U, cache_U_inv, cache_A, cache_A_inv, j, i);
+            calc_L_matrix(cache_L, cache_U, cache_U_inv_v2, cache_A, j, i);
+            mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
+            
+            mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);
+            
+            barrier_wait(&my_barrier);
+
+            mram_read((__mram_ptr void const*) (mram_base_addr_L + (l_size_bytes*i)), cache_L_v2, l_size_bytes);
+            printf("j= %d **** cache_L_v2 = %f \n", j,cache_L_v2[i]);
+            calc_U_matrix(cache_L_v2, cache_U, cache_U_inv, cache_A, cache_A_inv, j, i);
+
+            mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_U_inv + byte_index), l_size_bytes);
+            mram_read((__mram_ptr void const*) (mram_base_addr_U_inv + byte_index), cache_U_inv, l_size_bytes);
+
+            barrier_wait(&my_barrier);
+            //mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_U_inv + byte_index), l_size_bytes);
         //barrier_wait(&my_barrier);
         }
             /*if (j < i)
@@ -219,7 +232,7 @@ int main_kernel1() {
         // Write cache to current MRAM block
         //@@ INSERT WRAM-MRAM TRANSFER HERE
         mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
-        //mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
+        mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_U_inv + byte_index), l_size_bytes);
         //printf("cache_Y = %d [%d] *** byte_index = %d *** l_size_bytes = %d\n",cache_Y[byte_index],tasklet_id,byte_index,l_size_bytes);
         /*if(tasklet_id == 0){
             for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
