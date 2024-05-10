@@ -26,19 +26,35 @@
 static T* A_matrix;
 static T* U_matrix;
 static T* L_matrix;
+static T* U_matrix_inv;
 static T* Y_host;
 
 // Create input arrays
-static void read_input(T* A, T* B, T* C, unsigned int nr_elements) {
+static void read_input(T* A, T* B, T* C, T* D, unsigned int nr_elements) {
 
     float A_init[64] = {43,7,8,6,4,6,7,3,10,44,3,8,1,10,4,7,1,7,46,7,2,9,8,10,3,1,3,39,8,6,10,3,3,9,10,8,46,7,2,3,10,4,2,10,5,48,9,5,6,1,4,7,2,1,30,4,3,1,7,2,6,6,5,31};
     float U_init[64] = {1.000000, 0.162791, 0.186047, 0.139535, 0.093023, 0.139535, 0.162791, 0.069767,0.000000, 1.000000, 0.026894, 0.155873, 0.001647, 0.203074, 0.055982, 0.148738, 0.000000, 0.000000, 1.000000, 0.126994, 0.041545, 0.163752, 0.163367, 0.195338, 0.000000, 0.000000, 0.000000, 1.000000, 0.199491, 0.133005, 0.237903, 0.058657, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.060212, -0.037906, -0.012936, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.119497, 0.077636, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.101139, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000};
-    
+    float U_init_inv[64];
+
+    for (unsigned int i = 0; i < 8; i++) {
+        for (unsigned int j = 0; j < 8; j++) {
+            U_init_inv[i + 8*j] = U_init[j + 8*i];
+        }   
+    }
+
     for (unsigned int i = 0; i < nr_elements; i++) {
+        printf("%f ", U_init_inv[i]);
+            if ((i+1)%8 == 0)
+                printf("\n");      
         A[i] = A_init[i];
         B[i] = U_init[i];
+        //B[i] = 0;
         C[i] = 1;
+        D[i] = U_init_inv[i]; 
+        //D[i] = 0;
     }
+    printf("\n");   
+
 
 }
 
@@ -97,17 +113,19 @@ int main(int argc, char **argv) {
     A_matrix = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
     U_matrix = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
     L_matrix = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
+    U_matrix_inv = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
 
     Y_host = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
     T *bufferA = A_matrix;
     T *bufferU = U_matrix;
     T *bufferL = L_matrix;
+    T *bufferU_inv = U_matrix_inv;
 
     T alpha = p.alpha;
     unsigned int i = 0;
 
     // Create an input file with arbitrary data
-    read_input(A_matrix, U_matrix,L_matrix, input_size);
+    read_input(A_matrix, U_matrix, L_matrix, U_matrix_inv, input_size);
     memcpy(Y_host, U_matrix, input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
 
     // Loop over main kernel
@@ -168,7 +186,12 @@ int main(int argc, char **argv) {
 	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferL + input_size_dpu_8bytes * i));
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T)*2, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-        
+
+        DPU_FOREACH (dpu_set, dpu, i) {
+	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferU_inv + input_size_dpu_8bytes * i));
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T)*3, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));        
+
 #endif
         if(rep >= p.n_warmup)
             stop(&timer, 1); // Stop timer (CPU-DPU transfers)
@@ -234,7 +257,7 @@ int main(int argc, char **argv) {
 	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferL + input_size_dpu_8bytes * i));
         }
 
-        DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T)*2, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
+        DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T) * 2, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
         
 #endif
         if(rep >= p.n_warmup)
@@ -295,12 +318,30 @@ int main(int argc, char **argv) {
     // Check output
     bool status = true;
     for (i = 0; i < input_size; i++) {
-        printf("%d: %f -- %f\n", i, Y_host[i], L_matrix[i]);
+        //printf("%d: %f -- %f\n", i, Y_host[i], L_matrix[i]);
+        printf("%f ",L_matrix[i]);
+        if((i+1)%8 == 0){
+            printf("\n");
+        }
         if(Y_host[i] != U_matrix[i]){ 
             status = false;
             //printf("%d: ******** %f ************\n", i, L_matrix[i]);
         }
     }
+    printf("\n");
+	for (int i = 0; i < 8; ++i){
+		for (int i_aux = 0; i_aux < 8; ++i_aux){
+			float aux_v2 = 0;
+			for (int j = 0; j < 8; ++j){
+				aux_v2 = aux_v2 + L_matrix[i*8 + j]*U_matrix[j*8 + i_aux];
+                
+			}
+            printf("%f ", aux_v2);
+			//a_aux[i][i_aux] = aux_v2;
+		}
+        printf("\n");
+	}    
+
     if (status) {
         printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
     } else {

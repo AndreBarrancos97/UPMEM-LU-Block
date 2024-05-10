@@ -40,6 +40,54 @@ static void axpy(T *bufferY, T *bufferX, T alpha, unsigned int l_size) {
 
 }
 
+static void calc_L_matrix(T *bufferL, T *bufferU, T *bufferU_inv, T *bufferA, unsigned int j, unsigned int i) {
+    
+    //unsigned int j = tasklet_id;
+    //for (int j = 0; j < size; j++) {
+		//if j is smaller than i, set l[j][i] to 0
+        printf("I= %d ******* J= %d \n",i,j);
+        //bufferL[j] = 10;
+		if (j < i)
+		{
+		    bufferL[i] = 0;
+        }
+        else
+        {
+            bufferL[i] = bufferA[i];
+            for (unsigned int k = 0; k < i; k++)
+            {
+                //deduct from the current l cell the value of these 2 values multiplied
+                bufferL[i] = bufferL[i] - bufferL[k] * bufferU_inv[k];
+            }
+        }
+}
+
+static void calc_U_matrix(T *bufferL, T *bufferU, T *bufferU_inv, T *bufferA, T *bufferA_inv, unsigned int j, unsigned int i) {
+    
+    //unsigned int j = tasklet_id;
+    //for (int j = 0; j < size; j++) {
+		//if j is smaller than i, set l[j][i] to 0
+        //printf("I= %d ******* J= %d \n",i,j);
+        //bufferL[j] = 10;
+		if (j < i)
+		{
+		    bufferU_inv[i] = 0;
+        }
+		else if (j == i)
+		{
+		    bufferU_inv[i] = 1;
+        }
+        else
+        {
+            bufferU_inv[i] = bufferA_inv[i]/bufferL[i];
+            for (unsigned int k = 0; k < i; k++)
+            {
+                //deduct from the current l cell the value of these 2 values multiplied
+                bufferU_inv[i] = bufferU_inv[i] - ((bufferL[k] * bufferU_inv[k])/bufferL[i]);
+            }
+        }
+}
+
 // main_kernel1
 int main_kernel1() {
     
@@ -74,6 +122,8 @@ int main_kernel1() {
     uint32_t mram_base_addr_A = (uint32_t)DPU_MRAM_HEAP_POINTER;
     uint32_t mram_base_addr_U = (uint32_t)(DPU_MRAM_HEAP_POINTER + input_size_dpu_bytes_transfer);
     uint32_t mram_base_addr_L = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*2));
+    uint32_t mram_base_addr_U_inv = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*3));
+    uint32_t mram_base_addr_A_inv = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*4));
 
     // Initialize a local cache in WRAM to store the MRAM block
     
@@ -86,7 +136,11 @@ int main_kernel1() {
 
     T *cache_A = (T *) mem_alloc(BLOCK_SIZE);   
     T *cache_U = (T *) mem_alloc(BLOCK_SIZE);
-    T *cache_L = (T *) mem_alloc(BLOCK_SIZE); 
+    T *cache_L = (T *) mem_alloc(BLOCK_SIZE);
+    T *cache_U_inv = (T *) mem_alloc(BLOCK_SIZE);
+    T *cache_U_inv_v2 = (T *) mem_alloc(BLOCK_SIZE);
+    T *cache_L_v2 = (T *) mem_alloc(BLOCK_SIZE);
+    T *cache_A_inv = (T *) mem_alloc(BLOCK_SIZE);   
 
     /*
     Example:
@@ -125,14 +179,47 @@ int main_kernel1() {
         mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes); 
         mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);
         mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);
+        mram_read((__mram_ptr void const*) (mram_base_addr_U_inv + byte_index), cache_U_inv, l_size_bytes);
+        mram_read((__mram_ptr void const*) (mram_base_addr_A_inv + byte_index), cache_A_inv, l_size_bytes);
 
         // Computer vector addition
         //@@ INSERT CALL TO AXPY FUNCTION HERE
-        axpy (cache_L, cache_U, alpha,l_size_bytes >> DIV);
+        //axpy (cache_L, cache_U, alpha,l_size_bytes >> DIV); 
+        unsigned int j = tasklet_id;
+        for(unsigned int i = 0; i<8;i++){
+            mram_read((__mram_ptr void const*) (mram_base_addr_U_inv + (l_size_bytes*i)), cache_U_inv_v2, l_size_bytes);
+            
+        calc_L_matrix(cache_L, cache_U, cache_U_inv_v2, cache_A, j, i);
+        //barrier_wait(&my_barrier);
+        //mram_read((__mram_ptr void const*) (mram_base_addr_A + (l_size_bytes*i)), cache_L_v2, l_size_bytes);
+        //calc_U_matrix(cache_L_v2, cache_U, cache_U_inv, cache_A, cache_A_inv, j, i);
+        //barrier_wait(&my_barrier);
+        }
+            /*if (j < i)
+            {
+                //cache_L[(j*8)+i] = j;
+                cache_L[2] = 10;
+            }*/
+            /*else
+            {
+                cache_L[(j*8)+i] = cache_A[(j*8)+i];
+                for (unsigned int k = 0; k < i; k++)
+                {
+                    //deduct from the current l cell the value of these 2 values multiplied
+                    cache_L[(j*8)+i] = cache_L[(j*8)+i] - cache_L[j*8+k] * cache_U[k+i*8];
+                }
+            }*/
+        
+        printf("byte_index == %d \n",byte_index);
+        printf("input_size_dpu_bytes == %d \n",input_size_dpu_bytes);
+    
+
+
 
         // Write cache to current MRAM block
         //@@ INSERT WRAM-MRAM TRANSFER HERE
         mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
+        //mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
         //printf("cache_Y = %d [%d] *** byte_index = %d *** l_size_bytes = %d\n",cache_Y[byte_index],tasklet_id,byte_index,l_size_bytes);
         /*if(tasklet_id == 0){
             for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
@@ -141,9 +228,23 @@ int main_kernel1() {
         }
         */
     }
-    for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
-        printf("cache_Y = %f [%d] \n",cache_L[i],tasklet_id);
-    }
+    //for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
+    //    printf("cache_Y = %f [%d] \n",cache_L[i],tasklet_id);
+    //}
+    /*
+    for (int i = 0; i < 8; ++i){
+		for (int i_aux = 0; i_aux < 8; ++i_aux){
+			float aux_v2 = 0;
+			for (int j = 0; j < 8; ++j){
+				aux_v2 = aux_v2 + L_matrix[i*8 + j]*U_matrix[j*8 + i_aux];
+                
+			}
+            printf("%f ", aux_v2);
+			//a_aux[i][i_aux] = aux_v2;
+		}
+        printf("\n");
+	}  
+    */
 
 #if defined(CYCLES) || defined(INSTRUCTIONS)
     result->count += counter_stop(&count); // STOP TIMER
