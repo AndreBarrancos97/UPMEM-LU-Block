@@ -27,7 +27,7 @@ int main(void) {
     return kernels[DPU_INPUT_ARGUMENTS.kernel](); 
 }
 
-static void calc_L_matrix(T *bufferL, T *bufferU_inv, T *bufferA, unsigned int j, unsigned int i) {
+static void calc_L_matrix(T *bufferL, T *bufferU_aux, T *bufferA, unsigned int j, unsigned int i) {
     
 
 		if (j < i)
@@ -40,28 +40,28 @@ static void calc_L_matrix(T *bufferL, T *bufferU_inv, T *bufferA, unsigned int j
             for (unsigned int k = 0; k < i; k++)
             {
                 //deduct from the current l cell the value of these 2 values multiplied
-                bufferL[i] = bufferL[i] - bufferL[k] * bufferU_inv[k];
+                bufferL[i] = bufferL[i] - bufferL[k] * bufferU_aux[k];
             }
         }
 }
 
-static void calc_U_matrix(T *bufferL, T *bufferU_inv, T *bufferA, T *bufferA_inv, unsigned int j, unsigned int i) {
+static void calc_U_matrix(T *bufferL_aux, T *bufferU, T *bufferA_inv, unsigned int j, unsigned int i) {
     
 		if (j < i)
 		{
-		    bufferU_inv[i] = 0;
+		    bufferU[i] = 0;
         }
 		else if (j == i)
 		{
-		    bufferU_inv[i] = 1;
+		    bufferU[i] = 1;
         }
         else
         {
-            bufferU_inv[i] = bufferA_inv[i]/bufferL[i];
+            bufferU[i] = bufferA_inv[i]/bufferL_aux[i];
             for (unsigned int k = 0; k < i; k++)
             {
                 //deduct from the current l cell the value of these 2 values multiplied
-                bufferU_inv[i] = bufferU_inv[i] - ((bufferL[k] * bufferU_inv[k])/bufferL[i]);
+                bufferU[i] = bufferU[i] - ((bufferL_aux[k] * bufferU[k])/bufferL_aux[i]);
             }
         }
 }
@@ -90,8 +90,8 @@ int main_kernel1() {
     counter_start(&count); // START TIMER
 #endif
 
-    uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size; // Input size per DPU in bytes
-    uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size; // Transfer input size per DPU in bytes
+    uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size;                                                                               // Input size per DPU in bytes
+    uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size;                                                             // Transfer input size per DPU in bytes
 
     // Address of the current processing block in MRAM
     uint32_t base_tasklet = tasklet_id << BLOCK_SIZE_LOG2;
@@ -109,11 +109,11 @@ int main_kernel1() {
     */
 
     // Initialize a local cache in WRAM to store the MRAM block
-    T *cache_A = (T *) mem_alloc(BLOCK_SIZE);   
+    T *cache_A = (T *) mem_alloc(BLOCK_SIZE);
     T *cache_U = (T *) mem_alloc(BLOCK_SIZE);
     T *cache_L = (T *) mem_alloc(BLOCK_SIZE);
-    T *cache_U_inv_v2 = (T *) mem_alloc(BLOCK_SIZE);
-    T *cache_L_v2 = (T *) mem_alloc(BLOCK_SIZE);
+    T *cache_L_aux = (T *) mem_alloc(BLOCK_SIZE);
+    T *cache_U_aux = (T *) mem_alloc(BLOCK_SIZE);
     T *cache_A_inv = (T *) mem_alloc(BLOCK_SIZE);   
 
     /*
@@ -141,41 +141,32 @@ int main_kernel1() {
     */
 
     
-	
+	// each tasklet outputs a line for the Lower Matrix and a column for the upper matrix.
     for(unsigned int byte_index = base_tasklet; byte_index < input_size_dpu_bytes; byte_index += BLOCK_SIZE * NR_TASKLETS){
 
         // Bound checking
-        //@@ INSERT BOUND CHECKING HERE
         uint32_t l_size_bytes = (byte_index + BLOCK_SIZE >= input_size_dpu_bytes) ? (input_size_dpu_bytes - byte_index) : BLOCK_SIZE;
 
         // Load cache with current MRAM block
-        //@@ INSERT MRAM-WRAM TRANSFERS HERE
-        mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes); 
-        mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);
-        mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);
-        mram_read((__mram_ptr void const*) (mram_base_addr_A_inv + byte_index), cache_A_inv, l_size_bytes);
+        mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes);                                         // Read CacheA line                                        
+        mram_read((__mram_ptr void const*) (mram_base_addr_A_inv + byte_index), cache_A_inv, l_size_bytes);                                 // Read CacheA column
 
-        //@@ INSERT CALL TO AXPY FUNCTION HERE
         unsigned int j = tasklet_id;
         for(unsigned int i = 0; i<8;i++){
-            mram_read((__mram_ptr void const*) (mram_base_addr_U + (l_size_bytes*i)), cache_U_inv_v2, l_size_bytes);
-            calc_L_matrix(cache_L, cache_U_inv_v2, cache_A, j, i);
-            mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
-            mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);
+            mram_read((__mram_ptr void const*) (mram_base_addr_U + (l_size_bytes*i)), cache_U_aux, l_size_bytes);                            // Read CacheU aux column
+            calc_L_matrix(cache_L, cache_U_aux, cache_A, j, i);
+            mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);                                           // Save CacheL line
+            mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);                                      // Read CacheL line
             
-            barrier_wait(&my_barrier);
+            barrier_wait(&my_barrier);                                                                                                       // Wait for all the tasklets
 
-            mram_read((__mram_ptr void const*) (mram_base_addr_L + (l_size_bytes*i)), cache_L_v2, l_size_bytes);
-            calc_U_matrix(cache_L_v2, cache_U, cache_A, cache_A_inv, j, i);
-            mram_write(cache_U, (__mram_ptr void*) (mram_base_addr_U + byte_index), l_size_bytes);
-            mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);
+            mram_read((__mram_ptr void const*) (mram_base_addr_L + (l_size_bytes*i)), cache_L_aux, l_size_bytes);                            // Read Cache L aux line
+            calc_U_matrix(cache_L_aux, cache_U, cache_A_inv, j, i);
+            mram_write(cache_U, (__mram_ptr void*) (mram_base_addr_U + byte_index), l_size_bytes);                                           // Save CacheU line
+            mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);                                      // Read CacheU column
 
-            barrier_wait(&my_barrier);
+            barrier_wait(&my_barrier);                                                                                                       // Wait for all the tasklets
         } 
-        // Write cache to current MRAM block
-        //@@ INSERT WRAM-MRAM TRANSFER HERE
-        mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
-        mram_write(cache_U, (__mram_ptr void*) (mram_base_addr_U + byte_index), l_size_bytes);
     }
 
 #if defined(CYCLES) || defined(INSTRUCTIONS)
