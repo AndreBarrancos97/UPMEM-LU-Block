@@ -27,26 +27,9 @@ int main(void) {
     return kernels[DPU_INPUT_ARGUMENTS.kernel](); 
 }
 
-// AXPY: Computes AXPY for a cached block 
-static void axpy(T *bufferY, T *bufferX, T alpha, unsigned int l_size) {
-
-    //@@ INSERT AXPY CODE
-    printf("l_size = %d \n",l_size);
-    for (unsigned int i = 0; i < l_size; i++) {
-        bufferY[i] = ( bufferX[i]);
-        //bufferY[i] = 1;
-        //printf("bufferY[i] = %d \n",bufferY[i]);
-    }
-
-}
-
-static void calc_L_matrix(T *bufferL, T *bufferU, T *bufferU_inv, T *bufferA, unsigned int j, unsigned int i) {
+static void calc_L_matrix(T *bufferL, T *bufferU_inv, T *bufferA, unsigned int j, unsigned int i) {
     
-    //unsigned int j = tasklet_id;
-    //for (int j = 0; j < size; j++) {
-		//if j is smaller than i, set l[j][i] to 0
-        //printf("I= %d ******* J= %d \n",i,j);
-        //bufferL[j] = 10;
+
 		if (j < i)
 		{
 		    bufferL[i] = 0;
@@ -62,13 +45,8 @@ static void calc_L_matrix(T *bufferL, T *bufferU, T *bufferU_inv, T *bufferA, un
         }
 }
 
-static void calc_U_matrix(T *bufferL, T *bufferU, T *bufferU_inv, T *bufferA, T *bufferA_inv, unsigned int j, unsigned int i) {
+static void calc_U_matrix(T *bufferL, T *bufferU_inv, T *bufferA, T *bufferA_inv, unsigned int j, unsigned int i) {
     
-    //unsigned int j = tasklet_id;
-    //for (int j = 0; j < size; j++) {
-		//if j is smaller than i, set l[j][i] to 0
-        //printf("I= %d ******* J= %d \n",i,j);
-        //bufferL[j] = 10;
 		if (j < i)
 		{
 		    bufferU_inv[i] = 0;
@@ -114,19 +92,14 @@ int main_kernel1() {
 
     uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size; // Input size per DPU in bytes
     uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size; // Transfer input size per DPU in bytes
-    T alpha = DPU_INPUT_ARGUMENTS.alpha; // alpha (a in axpy)
-    printf("bbbbb %f \n", DPU_INPUT_ARGUMENTS.alpha);
 
     // Address of the current processing block in MRAM
     uint32_t base_tasklet = tasklet_id << BLOCK_SIZE_LOG2;
     uint32_t mram_base_addr_A = (uint32_t)DPU_MRAM_HEAP_POINTER;
-    uint32_t mram_base_addr_U = (uint32_t)(DPU_MRAM_HEAP_POINTER + input_size_dpu_bytes_transfer);
-    uint32_t mram_base_addr_L = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*2));
-    uint32_t mram_base_addr_U_inv = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*3));
-    uint32_t mram_base_addr_A_inv = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*4));
+    uint32_t mram_base_addr_L = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer));
+    uint32_t mram_base_addr_U = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*2));
+    uint32_t mram_base_addr_A_inv = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*3));
 
-    // Initialize a local cache in WRAM to store the MRAM block
-    
     /*
     printf("input_size_dpu_bytes [%d] =  %d \n",tasklet_id, input_size_dpu_bytes);
     printf("input_size_dpu_bytes_transfer [%d] =  %d \n",tasklet_id, input_size_dpu_bytes_transfer);
@@ -135,10 +108,10 @@ int main_kernel1() {
     printf("BLOCK_SIZE [%d] =  %d \n",tasklet_id, BLOCK_SIZE);
     */
 
+    // Initialize a local cache in WRAM to store the MRAM block
     T *cache_A = (T *) mem_alloc(BLOCK_SIZE);   
     T *cache_U = (T *) mem_alloc(BLOCK_SIZE);
     T *cache_L = (T *) mem_alloc(BLOCK_SIZE);
-    T *cache_U_inv = (T *) mem_alloc(BLOCK_SIZE);
     T *cache_U_inv_v2 = (T *) mem_alloc(BLOCK_SIZE);
     T *cache_L_v2 = (T *) mem_alloc(BLOCK_SIZE);
     T *cache_A_inv = (T *) mem_alloc(BLOCK_SIZE);   
@@ -174,90 +147,36 @@ int main_kernel1() {
         // Bound checking
         //@@ INSERT BOUND CHECKING HERE
         uint32_t l_size_bytes = (byte_index + BLOCK_SIZE >= input_size_dpu_bytes) ? (input_size_dpu_bytes - byte_index) : BLOCK_SIZE;
-        //printf("l_size_bytes = %d \n ", l_size_bytes);
+
         // Load cache with current MRAM block
         //@@ INSERT MRAM-WRAM TRANSFERS HERE
         mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes); 
-        mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);
         mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);
-        mram_read((__mram_ptr void const*) (mram_base_addr_U_inv + byte_index), cache_U_inv, l_size_bytes);
+        mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);
         mram_read((__mram_ptr void const*) (mram_base_addr_A_inv + byte_index), cache_A_inv, l_size_bytes);
 
-        // Computer vector addition
         //@@ INSERT CALL TO AXPY FUNCTION HERE
-        //axpy (cache_L, cache_U, alpha,l_size_bytes >> DIV); 
         unsigned int j = tasklet_id;
         for(unsigned int i = 0; i<8;i++){
-            mram_read((__mram_ptr void const*) (mram_base_addr_U_inv + (l_size_bytes*i)), cache_U_inv_v2, l_size_bytes);
-            
-            calc_L_matrix(cache_L, cache_U, cache_U_inv_v2, cache_A, j, i);
+            mram_read((__mram_ptr void const*) (mram_base_addr_U + (l_size_bytes*i)), cache_U_inv_v2, l_size_bytes);
+            calc_L_matrix(cache_L, cache_U_inv_v2, cache_A, j, i);
             mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
-            
             mram_read((__mram_ptr void const*) (mram_base_addr_L + byte_index), cache_L, l_size_bytes);
             
             barrier_wait(&my_barrier);
 
             mram_read((__mram_ptr void const*) (mram_base_addr_L + (l_size_bytes*i)), cache_L_v2, l_size_bytes);
-            printf("j= %d **** cache_L_v2 = %f \n", j,cache_L_v2[i]);
-            calc_U_matrix(cache_L_v2, cache_U, cache_U_inv, cache_A, cache_A_inv, j, i);
-
-            mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_U_inv + byte_index), l_size_bytes);
-            mram_read((__mram_ptr void const*) (mram_base_addr_U_inv + byte_index), cache_U_inv, l_size_bytes);
+            calc_U_matrix(cache_L_v2, cache_U, cache_A, cache_A_inv, j, i);
+            mram_write(cache_U, (__mram_ptr void*) (mram_base_addr_U + byte_index), l_size_bytes);
+            mram_read((__mram_ptr void const*) (mram_base_addr_U + byte_index), cache_U, l_size_bytes);
 
             barrier_wait(&my_barrier);
-            //mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_U_inv + byte_index), l_size_bytes);
-        //barrier_wait(&my_barrier);
-        }
-            /*if (j < i)
-            {
-                //cache_L[(j*8)+i] = j;
-                cache_L[2] = 10;
-            }*/
-            /*else
-            {
-                cache_L[(j*8)+i] = cache_A[(j*8)+i];
-                for (unsigned int k = 0; k < i; k++)
-                {
-                    //deduct from the current l cell the value of these 2 values multiplied
-                    cache_L[(j*8)+i] = cache_L[(j*8)+i] - cache_L[j*8+k] * cache_U[k+i*8];
-                }
-            }*/
-        
-        printf("byte_index == %d \n",byte_index);
-        printf("input_size_dpu_bytes == %d \n",input_size_dpu_bytes);
-    
-
-
-
+        } 
         // Write cache to current MRAM block
         //@@ INSERT WRAM-MRAM TRANSFER HERE
         mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);
-        mram_write(cache_U_inv, (__mram_ptr void*) (mram_base_addr_U_inv + byte_index), l_size_bytes);
-        //printf("cache_Y = %d [%d] *** byte_index = %d *** l_size_bytes = %d\n",cache_Y[byte_index],tasklet_id,byte_index,l_size_bytes);
-        /*if(tasklet_id == 0){
-            for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
-                printf("cache_Y = %d [%d] \n",cache_Y[i],tasklet_id);
-            }
-        }
-        */
+        mram_write(cache_U, (__mram_ptr void*) (mram_base_addr_U + byte_index), l_size_bytes);
     }
-    //for (unsigned int i = 0; i < (BLOCK_SIZE >> DIV); i++) {
-    //    printf("cache_Y = %f [%d] \n",cache_L[i],tasklet_id);
-    //}
-    /*
-    for (int i = 0; i < 8; ++i){
-		for (int i_aux = 0; i_aux < 8; ++i_aux){
-			float aux_v2 = 0;
-			for (int j = 0; j < 8; ++j){
-				aux_v2 = aux_v2 + L_matrix[i*8 + j]*U_matrix[j*8 + i_aux];
-                
-			}
-            printf("%f ", aux_v2);
-			//a_aux[i][i_aux] = aux_v2;
-		}
-        printf("\n");
-	}  
-    */
 
 #if defined(CYCLES) || defined(INSTRUCTIONS)
     result->count += counter_stop(&count); // STOP TIMER
