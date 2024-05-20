@@ -1,7 +1,3 @@
-/*
-* AXPY with multiple tasklets
-*
-*/
 #include <stdint.h>
 #include <stdio.h>
 #include <defs.h>
@@ -70,25 +66,16 @@ static void calc_U_matrix(T *bufferL_aux, T *bufferU, T *bufferA_inv, unsigned i
 int main_kernel1() {
     
     unsigned int tasklet_id = me();
-#if PRINT
+
     printf("tasklet_id = %u\n", tasklet_id);
-#endif
-    if (tasklet_id == 0){ 
-        mem_reset(); // Reset the heap
-#ifdef CYCLES
-        perfcounter_config(COUNT_CYCLES, true); // Initialize once the cycle counter
-#elif INSTRUCTIONS
-        perfcounter_config(COUNT_INSTRUCTIONS, true); // Initialize once the instruction counter
-#endif
+
+    if (tasklet_id == 0){
+        // Reset the heap
+        mem_reset(); 
     }
+
     // Barrier
     barrier_wait(&my_barrier);
-#if defined(CYCLES) || defined(INSTRUCTIONS)
-    perfcounter_count count;
-    dpu_results_t *result = &DPU_RESULTS[tasklet_id];
-    result->count = 0;
-    counter_start(&count); // START TIMER
-#endif
 
     uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size;                                                                               // Input size per DPU in bytes
     uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size;                                                             // Transfer input size per DPU in bytes
@@ -168,10 +155,6 @@ int main_kernel1() {
             barrier_wait(&my_barrier);                                                                                                       // Wait for all the tasklets
         } 
     }
-
-#if defined(CYCLES) || defined(INSTRUCTIONS)
-    result->count += counter_stop(&count); // STOP TIMER
-#endif
 	
     return 0;
 }

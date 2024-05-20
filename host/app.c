@@ -1,8 +1,3 @@
-/**
-* app.c
-* Host Application Source File
-*
-*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -67,16 +62,14 @@ int main(int argc, char **argv) {
 
     // Timer declaration
     Timer timer;
-#if defined(CYCLES) || defined(INSTRUCTIONS)
-    double cc = 0;
-    double cc_min = 0;
-#endif
 	
     // Allocate DPUs
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-    DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));                                                                      // Number of DPUs in the DPU set
+
+    // Number of DPUs in the DPU set
+    DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));                                                                      
     printf("Allocated %d DPU(s)\t", nr_of_dpus);
     printf("NR_TASKLETS\t%d\tBLOCK\t%d\n", NR_TASKLETS, BLOCK);
 
@@ -84,22 +77,25 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
 
     // Input size 
-    const unsigned int input_size = p.input_size;                                                                           // Total input size = 64 (8x8 matrix)
-    printf("input_size =  %d \n",input_size);                                                                               // Input_size = 10
-    printf("sizeof(T) =  %ld \n",sizeof(T));                                                                                // Float = 4bytes
+    // Total input size = 64 (8x8 matrix)
+    // Input_size = 10
+    // Float = 4bytes
+    const unsigned int input_size = p.input_size;                                                                           
+    printf("input_size =  %d \n",input_size);                                                                               
+    printf("sizeof(T) =  %ld \n",sizeof(T));                                                                                
 
+    // Total input size, 8-byte aligned
     const unsigned int input_size_8bytes = 
-        ((input_size * sizeof(T)) % 8) != 0 ? roundup(input_size, 8) : input_size;                                          // Total input size, 8-byte aligned
-    
+        ((input_size * sizeof(T)) % 8) != 0 ? roundup(input_size, 8) : input_size;                                          
     printf("input_size_8bytes =  %d \n",input_size_8bytes);
 
-    const unsigned int input_size_dpu = divceil(input_size, nr_of_dpus);                                                    // Input size per DPU (max.)
-
+    // Input size per DPU (max.)
+    const unsigned int input_size_dpu = divceil(input_size, nr_of_dpus);                                                    
     printf("input_size_dpu =  %d \n",input_size_dpu);
 
+    // Input size per DPU (max.), 8-byte aligned
     const unsigned int input_size_dpu_8bytes = 
-        ((input_size_dpu * sizeof(T)) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu;                              // Input size per DPU (max.), 8-byte aligned
-
+        ((input_size_dpu * sizeof(T)) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu;                              
     printf("input_size_dpu_8bytes =  %d \n",input_size_dpu_8bytes);
 
     // Input/output allocation in host main memory
@@ -157,12 +153,8 @@ int main(int argc, char **argv) {
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments[0]), DPU_XFER_DEFAULT));
 
-        // Copy input arrays
-#ifdef SERIAL // Serial transfers
-
-
-#else // Parallel transfers
-
+        // Parallel transfers
+        // Copy matrixes
         DPU_FOREACH(dpu_set, dpu, i) {
 	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferA + input_size_dpu_8bytes * i));
         }
@@ -183,7 +175,6 @@ int main(int argc, char **argv) {
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T)*3, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));          
 
-#endif
         if(rep >= p.n_warmup)
             stop(&timer, 1); // Stop timer (CPU-DPU transfers)
 		
@@ -197,29 +188,21 @@ int main(int argc, char **argv) {
             stop(&timer, 2); // Stop timer (DPU kernel)
         }
 
-
-#if PRINT
-        {
-            unsigned int each_dpu = 0;
-            printf("Display DPU Logs\n");
-            DPU_FOREACH (dpu_set, dpu) {
-                printf("DPU#%d:\n", each_dpu);
-                DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
-                each_dpu++;
-            }
+        unsigned int each_dpu = 0;
+        printf("Display DPU Logs\n");
+        DPU_FOREACH (dpu_set, dpu) {
+            printf("DPU#%d:\n", each_dpu);
+            DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
+            each_dpu++;
         }
-#endif
 
         printf("Retrieve results\n");
         if(rep >= p.n_warmup)
             start(&timer, 3, rep - p.n_warmup); // Start timer (DPU-CPU transfers)
         i = 0;
-        // Copy output array
-#ifdef SERIAL // Serial transfers
-
-
-#else // Parallel transfers
         
+        // Copy output array
+        // Parallel transfers
         DPU_FOREACH(dpu_set, dpu, i) {
 	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferL + input_size_dpu_8bytes * i));
         }
@@ -230,52 +213,9 @@ int main(int argc, char **argv) {
         }
         DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T) * 2, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
         
-
-#endif
         if(rep >= p.n_warmup)
             stop(&timer, 3); // Stop timer (DPU-CPU transfers)
-
-#if defined(CYCLES) || defined(INSTRUCTIONS)
-        dpu_results_t results[nr_of_dpus];
-        // Parallel transfers
-        dpu_results_t* results_retrieve[nr_of_dpus];
-        DPU_FOREACH(dpu_set, dpu, i) {
-            results_retrieve[i] = (dpu_results_t*)malloc(NR_TASKLETS * sizeof(dpu_results_t));
-            DPU_ASSERT(dpu_prepare_xfer(dpu, results_retrieve[i]));
-        }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, "DPU_RESULTS", 0, NR_TASKLETS * sizeof(dpu_results_t), DPU_XFER_DEFAULT));
-        DPU_FOREACH(dpu_set, dpu, i) {
-            results[i].count = 0;
-            // Retrieve tasklet count
-            for (unsigned int each_tasklet = 0; each_tasklet < NR_TASKLETS; each_tasklet++) {
-                if (results_retrieve[i][each_tasklet].count > results[i].count)
-                    results[i].count = results_retrieve[i][each_tasklet].count;
-            }
-            free(results_retrieve[i]);
-        }
-
-        uint64_t max_count = 0;
-        uint64_t min_count = 0xFFFFFFFFFFFFFFFF;
-        // Print performance results
-        if(rep >= p.n_warmup){
-            i = 0;
-            DPU_FOREACH(dpu_set, dpu) {
-                if(results[i].count > max_count)
-                    max_count = results[i].count;
-                if(results[i].count < min_count)
-                    min_count = results[i].count;
-                i++;
-            }
-            cc += (double)max_count;
-            cc_min += (double)min_count;
-        }
-#endif
     }
-#ifdef CYCLES
-    printf("DPU cycles  = %g\n", cc / p.n_reps);
-#elif INSTRUCTIONS
-    printf("DPU instructions  = %g\n", cc / p.n_reps);
-#endif
 	
     // Print timing results
     printf("CPU ");
@@ -297,7 +237,7 @@ int main(int argc, char **argv) {
             printf("\n");
         }
     }
-    printf(" \n ********* Lower Matrix ******************** \n");
+    printf("********* Lower Matrix ******************** \n");
    
         float U_init_inv[64];
         for (unsigned int i = 0; i < 8; i++) {
@@ -313,9 +253,18 @@ int main(int argc, char **argv) {
             printf("\n");
         }
     }
-    printf("\n ********* Upper Matrix ******************** \n");   
-    
-    printf("\n ********* AUX Matrix ******************** \n");
+    printf("********* Upper Matrix ******************** \n");   
+
+    printf(" \n ********* Original A Matrix ******************** \n");
+    for (i = 0; i < input_size; i++) {
+        printf("%f ",A_matrix[i]);
+        if((i+1)%8 == 0){
+            printf("\n");
+        }
+    }
+    printf("********* Original A Matrix ******************** \n");
+
+    printf("\n ********* L*U Matrix ******************** \n");
 	for (int i = 0; i < 8; ++i){
 		for (int i_aux = 0; i_aux < 8; ++i_aux){
 			float aux_v2 = 0;
@@ -331,7 +280,8 @@ int main(int argc, char **argv) {
         }		
         printf("\n");
 	}    
-    printf("\n ********* AUX Matrix ******************** \n");
+    printf("********* L*U Matrix ******************** \n");
+
 
     if (status) {
         printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
