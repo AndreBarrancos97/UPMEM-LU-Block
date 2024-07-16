@@ -77,8 +77,10 @@ int main_kernel1() {
     // Barrier
     barrier_wait(&my_barrier);
 
-    uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size;                                                                               // Input size per DPU in bytes
-    uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size;                                                             // Transfer input size per DPU in bytes
+    // Input size per DPU in bytes
+    // Transfer input size per DPU in bytes
+    uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size;                                                                               
+    uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size;                                                             
 
     // Address of the current processing block in MRAM
     uint32_t base_tasklet = tasklet_id << BLOCK_SIZE_LOG2;
