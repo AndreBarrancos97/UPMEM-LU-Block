@@ -23,32 +23,61 @@ static T* A_matrix;
 static T* U_matrix;
 static T* L_matrix;
 
+void print_matrix_2D(float matrix[], int size, int line)
+{
+	int j = 0;
+	for (int i = 0; i < size; i++){
+
+		if ((i%line) == 0){
+			printf("\n");
+			j=0;
+		}
+
+		printf("%f ",matrix[i]);
+		j++;
+	}
+}
+
+static void read_size(const char *filename, unsigned int *size){
+    FILE *file = fopen(filename, "r");
+        if (file == NULL) {
+            perror("Unable to open file for reading");
+        }
+    
+    fscanf(file, "%d", size);
+
+    fclose(file);
+
+}
+
 // Create input arrays
-static void read_input(T* A, T* B, T* C, unsigned int nr_elements) {
+static void read_input( T* A, const char *filename, int nr_elements){
+    //float A_init[64] = {48, 7, 8, 6, 4, 6, 7, 3, 10, 49, 3, 8, 1, 10, 4, 7, 1, 7, 51, 7, 2, 9, 8, 10, 3, 1, 3, 44, 8, 6, 10, 3, 3, 9, 10, 8, 46, 7, 2, 3,  10, 4, 2, 10, 5, 53, 9, 5, 6, 1, 4, 7, 2, 1, 30, 4, 3, 1, 7, 2, 6, 6, 5, 36};
 
-    float A_init[64] = {43,7,8,6,4,6,7,3,10,44,3,8,1,10,4,7,1,7,46,7,2,9,8,10,3,1,3,39,8,6,10,3,3,9,10,8,46,7,2,3,10,4,2,10,5,48,9,5,6,1,4,7,2,1,30,4,3,1,7,2,6,6,5,31};
-    //float U_init[64] = {1.000000, 0.162791, 0.186047, 0.139535, 0.093023, 0.139535, 0.162791, 0.069767,0.000000, 1.000000, 0.026894, 0.155873, 0.001647, 0.203074, 0.055982, 0.148738, 0.000000, 0.000000, 1.000000, 0.126994, 0.041545, 0.163752, 0.163367, 0.195338, 0.000000, 0.000000, 0.000000, 1.000000, 0.199491, 0.133005, 0.237903, 0.058657, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.060212, -0.037906, -0.012936, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.119497, 0.077636, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.101139, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 1.000000};
-    //float U_init_inv[64];
+    FILE *file = fopen(filename, "r");
+        if (file == NULL) {
+            perror("Unable to open file for reading");
+        }
+   
+    fscanf(file, "%f", &A[0]);
 
-    for (unsigned int i = 0; i < nr_elements; i++) {
-        /*printf("%f ", U_init_inv[i]);
-            if ((i+1)%8 == 0)
-                printf("\n"); 
-        */     
-        A[i] = A_init[i];
-        B[i] = 0;
-        C[i] = 0;
+    for (int i = 0; i < (nr_elements); i++) {
+
+        fscanf(file, "%f", &A[i]);
+        
     }
-    printf("\n");   
-
+    fclose(file);
 
 }
 
 // Main of the Host Application
 int main(int argc, char **argv) {
-
     // Input parameters
     struct Params p = input_params(argc, argv);
+    
+    unsigned int input_size;
+    read_size("matrix_8x8_64.txt", &input_size);
+    printf("input_size =  %d \n",input_size);
 
     // Timer declaration
     Timer timer;
@@ -70,7 +99,8 @@ int main(int argc, char **argv) {
     // Total input size = 64 (8x8 matrix)
     // Input_size = 10
     // Float = 4bytes
-    const unsigned int input_size = p.input_size;                                                                           
+    //const unsigned int input_size = p.input_size;
+
     printf("input_size =  %d \n",input_size);                                                                               
     printf("sizeof(T) =  %ld \n",sizeof(T));                                                                                
 
@@ -101,7 +131,7 @@ int main(int argc, char **argv) {
     unsigned int i = 0;
 
     // Create an input file with arbitrary data
-    read_input(A_matrix, U_matrix, L_matrix, input_size);
+    read_input(A_matrix, "matrix_8x8_64.txt", input_size);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
