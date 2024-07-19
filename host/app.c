@@ -23,6 +23,7 @@ static T* A_matrix;
 static T* U_matrix;
 static T* L_matrix;
 
+// Print Matrix
 void print_matrix_2D(float matrix[], int size, int line)
 {
 	int j = 0;
@@ -38,6 +39,7 @@ void print_matrix_2D(float matrix[], int size, int line)
 	}
 }
 
+// Read line size of loaded matrix
 static void read_size(const char *filename, unsigned int *size){
     FILE *file = fopen(filename, "r");
         if (file == NULL) {
@@ -53,7 +55,6 @@ static void read_size(const char *filename, unsigned int *size){
 // Create input arrays
 static void read_input( T* A, const char *filename, int nr_elements){
     //float A_init[64] = {48, 7, 8, 6, 4, 6, 7, 3, 10, 49, 3, 8, 1, 10, 4, 7, 1, 7, 51, 7, 2, 9, 8, 10, 3, 1, 3, 44, 8, 6, 10, 3, 3, 9, 10, 8, 46, 7, 2, 3,  10, 4, 2, 10, 5, 53, 9, 5, 6, 1, 4, 7, 2, 1, 30, 4, 3, 1, 7, 2, 6, 6, 5, 36};
-
     FILE *file = fopen(filename, "r");
         if (file == NULL) {
             perror("Unable to open file for reading");
@@ -75,8 +76,15 @@ int main(int argc, char **argv) {
     // Input parameters
     struct Params p = input_params(argc, argv);
     
-    unsigned int input_size;
-    read_size("matrix_8x8_64.txt", &input_size);
+    // Alterar o filename e o Makefile
+    // Nr tasklets = Nr de linhas da matriz
+    // 2^BLOCK = Nr de elementos na linha * 4 bytes. Ex: BLOCK = 5 -> 2^5 = 64 = 16 elmentos numa linha * 4 bytes.
+    char filename[] = "matrix_4x4_16.txt";
+    unsigned int input_line_size, input_size;
+
+    read_size(filename, &input_line_size);
+
+    input_size = input_line_size*input_line_size;
     printf("input_size =  %d \n",input_size);
 
     // Timer declaration
@@ -99,8 +107,7 @@ int main(int argc, char **argv) {
     // Total input size = 64 (8x8 matrix)
     // Input_size = 10
     // Float = 4bytes
-    //const unsigned int input_size = p.input_size;
-
+    // Const unsigned int input_size = p.input_size;
     printf("input_size =  %d \n",input_size);                                                                               
     printf("sizeof(T) =  %ld \n",sizeof(T));                                                                                
 
@@ -131,7 +138,7 @@ int main(int argc, char **argv) {
     unsigned int i = 0;
 
     // Create an input file with arbitrary data
-    read_input(A_matrix, "matrix_8x8_64.txt", input_size);
+    read_input(A_matrix, filename, input_size);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -160,8 +167,9 @@ int main(int argc, char **argv) {
         input_arguments[nr_of_dpus-1].kernel=kernel;
         input_arguments[nr_of_dpus-1].alpha=alpha;
 
+        // Start timer (CPU-DPU transfers)
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup); // Start timer (CPU-DPU transfers)
+            start(&timer, 1, rep - p.n_warmup); 
         i = 0;
 
 		// Copy input arguments
@@ -188,17 +196,22 @@ int main(int argc, char **argv) {
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T)*2, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT)); 
 
+        // Stop timer (CPU-DPU transfers)
         if(rep >= p.n_warmup)
-            stop(&timer, 1); // Stop timer (CPU-DPU transfers)
+            stop(&timer, 1); 
 		
-        printf("Run program on DPU(s) \n");
         // Run DPU kernel
+        printf("Run program on DPU(s) \n");
+        
+        // Start timer (DPU kernel)
         if(rep >= p.n_warmup) {
-            start(&timer, 2, rep - p.n_warmup); // Start timer (DPU kernel)
+            start(&timer, 2, rep - p.n_warmup); 
         }
+
+        // Stop timer (DPU kernel)
         DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
         if(rep >= p.n_warmup) {
-            stop(&timer, 2); // Stop timer (DPU kernel)
+            stop(&timer, 2); 
         }
 
         unsigned int each_dpu = 0;
@@ -210,8 +223,10 @@ int main(int argc, char **argv) {
         }
 
         printf("Retrieve results\n");
+
+        // Start timer (DPU-CPU transfers)
         if(rep >= p.n_warmup)
-            start(&timer, 3, rep - p.n_warmup); // Start timer (DPU-CPU transfers)
+            start(&timer, 3, rep - p.n_warmup); 
         i = 0;
         
         // Copy output array
@@ -226,8 +241,9 @@ int main(int argc, char **argv) {
         }
         DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T) * 2, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
         
+        // Stop timer (DPU-CPU transfers)
         if(rep >= p.n_warmup)
-            stop(&timer, 3); // Stop timer (DPU-CPU transfers)
+            stop(&timer, 3); 
     }
 	
     // Print timing results
@@ -246,23 +262,23 @@ int main(int argc, char **argv) {
     printf(" \n ********* Lower Matrix ******************** \n");
     for (i = 0; i < input_size; i++) {
         printf("%f ",L_matrix[i]);
-        if((i+1)%8 == 0){
+        if((i+1)%input_line_size == 0){
             printf("\n");
         }
     }
     printf("********* Lower Matrix ******************** \n");
    
-        float U_init_inv[64];
-        for (unsigned int i = 0; i < 8; i++) {
-            for (unsigned int j = 0; j < 8; j++) {
-                U_init_inv[i + 8*j] = bufferU[j + 8*i];
+        float U_init_inv[input_size];
+        for (unsigned int i = 0; i < input_line_size; i++) {
+            for (unsigned int j = 0; j < input_line_size; j++) {
+                U_init_inv[i + input_line_size*j] = bufferU[j + input_line_size*i];
             }   
         }
 
     printf("\n ********* Upper Matrix ******************** \n");
     for (i = 0; i < input_size; i++) {
         printf("%f ",U_init_inv[i]);
-        if((i+1)%8 == 0){
+        if((i+1)%input_line_size == 0){
             printf("\n");
         }
     }
@@ -271,22 +287,22 @@ int main(int argc, char **argv) {
     printf(" \n ********* Original A Matrix ******************** \n");
     for (i = 0; i < input_size; i++) {
         printf("%f ",A_matrix[i]);
-        if((i+1)%8 == 0){
+        if((i+1)%input_line_size == 0){
             printf("\n");
         }
     }
     printf("********* Original A Matrix ******************** \n");
 
     printf("\n ********* L*U Matrix ******************** \n");
-	for (int i = 0; i < 8; ++i){
-		for (int i_aux = 0; i_aux < 8; ++i_aux){
+	for (unsigned int i = 0; i < input_line_size; ++i){
+		for (unsigned int i_aux = 0; i_aux < input_line_size; ++i_aux){
 			float aux_v2 = 0;
-			for (int j = 0; j < 8; ++j){
+			for (unsigned int j = 0; j < input_line_size; ++j){
                 
-				aux_v2 = aux_v2 + L_matrix[i*8 + j]*U_init_inv[j*8 + i_aux];
+				aux_v2 = aux_v2 + L_matrix[i*input_line_size + j]*U_init_inv[j*input_line_size + i_aux];
 			}
             printf("%f ", aux_v2);
-            if (fabs(A_matrix[i*8 + i_aux] - aux_v2) > 0.001){
+            if (fabs(A_matrix[i*input_line_size + i_aux] - aux_v2) > 0.001){
                 status = false;
                 //printf(" \n *** yooooo = %f *** \n ",aux_v2);
             }

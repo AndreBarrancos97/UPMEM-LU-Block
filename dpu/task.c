@@ -35,7 +35,7 @@ static void calc_L_matrix(T *bufferL, T *bufferU_aux, T *bufferA, unsigned int j
             bufferL[i] = bufferA[i];
             for (unsigned int k = 0; k < i; k++)
             {
-                //deduct from the current l cell the value of these 2 values multiplied
+                // Deduct from the current l cell the value of these 2 values multiplied
                 bufferL[i] = bufferL[i] - bufferL[k] * bufferU_aux[k];
             }
         }
@@ -56,7 +56,7 @@ static void calc_U_matrix(T *bufferL_aux, T *bufferU, T *bufferA_inv, unsigned i
             bufferU[i] = bufferA_inv[j]/bufferL_aux[i];
             for (unsigned int k = 0; k < i; k++)
             {
-                //deduct from the current l cell the value of these 2 values multiplied
+                // Deduct from the current l cell the value of these 2 values multiplied
                 bufferU[i] = bufferU[i] - ((bufferL_aux[k] * bufferU[k])/bufferL_aux[i]);
             }
         }
@@ -129,7 +129,7 @@ int main_kernel1() {
     */
 
     
-	// each tasklet outputs a line for the Lower Matrix and a column for the upper matrix.
+	// Each tasklet outputs a line for the Lower Matrix and a column for the upper matrix.
     for(unsigned int byte_index = base_tasklet; byte_index < input_size_dpu_bytes; byte_index += BLOCK_SIZE * NR_TASKLETS){
 
         // Bound checking
@@ -139,10 +139,10 @@ int main_kernel1() {
         //printf("byte_index [%d] =  %d \n",tasklet_id, byte_index);
 
         // Load cache with current MRAM block
-        mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes);                                         // Read CacheA line                                        
+        mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes);                                          // Read CacheA line                                        
 
         unsigned int j = tasklet_id;
-        for(unsigned int i = 0; i<8;i++){
+        for(unsigned int i = 0; i < (BLOCK_SIZE/4);i++){
             mram_read((__mram_ptr void const*) (mram_base_addr_U + (l_size_bytes*i)), cache_U_aux, l_size_bytes);                            // Read CacheU aux column
             calc_L_matrix(cache_L, cache_U_aux, cache_A, j, i);
             mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);                                           // Save CacheL line

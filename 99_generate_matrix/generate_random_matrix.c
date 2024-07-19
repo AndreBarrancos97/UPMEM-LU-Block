@@ -3,14 +3,14 @@
 #include <math.h>
 
 
-void saveMatrix(const char *filename, int size, float matrix[]) {
+void saveMatrix(const char *filename, int size, float matrix[], int line) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
         perror("Unable to open file for writing");
         return;
     }
 
-	fprintf(file, "%i ", size);
+	fprintf(file, "%i ", line);
     // Write the dimensions
     for (int i = 0; i < size; i++) {
 
@@ -71,9 +71,9 @@ void random_fill(float matrix [], int size, int line)
 
 int main(int argc, char** argv)
 {
-	int line = 8;
+	int line = 16;
 	int size = line * line;
-	float a[64];
+	float a[size];
 
 	//fill a with random values
 	random_fill(a,size,line);
@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 	print_matrix_2D(a, size, line);
 	printf("\n ****A***** \n");
 
-    saveMatrix("matrix_8x8_64.txt",size, a);
+    saveMatrix("matrix_16x16_256.txt",size, a, line);
 
 	return 0;
 }
