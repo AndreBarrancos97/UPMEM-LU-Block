@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <math.h>
 
+//#define line 4096
+//int size = line * line;
+//float a[size];
 
-void saveMatrix(const char *filename, int size, float matrix[], int line) {
+void saveMatrix(const char *filename, int size, float *matrix, int line) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
         perror("Unable to open file for writing");
@@ -23,23 +26,23 @@ void saveMatrix(const char *filename, int size, float matrix[], int line) {
 }
 
 //print the matrix out
-void print_matrix_2D(float matrix[], int size, int line)
+void print_matrix_2D(float *matrix, int size, int line)
 {
 	int j = 0;
 	for (int i = 0; i < size; i++){
 
 		if ((i%line) == 0){
-			printf("\n");
+			//printf("\n");
 			j=0;
 		}
 
-		printf("%f ",matrix[i]);
+		//printf("%f ",matrix[i]);
 		j++;
 	}
 }
 
 //fill the array with random values (done for a)
-void random_fill(float matrix [], int size, int line)
+void random_fill(float *matrix, int size, int line)
 {
 	int j = 0;
 	float ao;
@@ -71,9 +74,19 @@ void random_fill(float matrix [], int size, int line)
 
 int main(int argc, char** argv)
 {
-	int line = 16;
+	//float *a;
+
+    //printf("Enter the number of elements: ");
+    //scanf("%d", &n);
+	int line = 4096;
 	int size = line * line;
-	float a[size];
+
+	float *a = (float *)malloc(size * 4);
+	if (a == NULL) {
+			fprintf(stderr, "Memory allocation failed\n");
+			return 1;
+		}
+    //a = (float*) malloc(size * 4);
 
 	//fill a with random values
 	random_fill(a,size,line);
@@ -82,8 +95,9 @@ int main(int argc, char** argv)
 	print_matrix_2D(a, size, line);
 	printf("\n ****A***** \n");
 
-    saveMatrix("matrix_16x16_256.txt",size, a, line);
+    saveMatrix("matrix_4096x4096_16777216.txt",size, a, line);
 
+	free(a);
 	return 0;
 }
 

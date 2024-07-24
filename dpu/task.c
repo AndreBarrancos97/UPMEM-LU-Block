@@ -81,20 +81,25 @@ int main_kernel1() {
     // Transfer input size per DPU in bytes
     uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size;                                                                               
     uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size;                                                             
+    uint32_t i_index = DPU_INPUT_ARGUMENTS.i_index;                                                           
+    uint32_t code_part = DPU_INPUT_ARGUMENTS.code_part;  
+    uint32_t dpu_nr = DPU_INPUT_ARGUMENTS.dpu_nr;  
+    uint32_t tasklet_nr = DPU_INPUT_ARGUMENTS.tasklet_nr;
 
     // Address of the current processing block in MRAM
-    uint32_t base_tasklet = tasklet_id << BLOCK_SIZE_LOG2;
+    //uint32_t base_tasklet = tasklet_id << BLOCK_SIZE_LOG2;
+    uint32_t base_tasklet = (tasklet_id + (dpu_nr*2)) << BLOCK_SIZE_LOG2;
     uint32_t mram_base_addr_A = (uint32_t)DPU_MRAM_HEAP_POINTER;
     uint32_t mram_base_addr_L = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer));
     uint32_t mram_base_addr_U = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*2));
 
-    
+    /*
     printf("input_size_dpu_bytes [%d] =  %d \n",tasklet_id, input_size_dpu_bytes);
     printf("input_size_dpu_bytes_transfer [%d] =  %d \n",tasklet_id, input_size_dpu_bytes_transfer);
     printf("base_tasklet [%d] =  %d \n",tasklet_id, base_tasklet);
     printf("BLOCK_SIZE_LOG2 [%d] =  %d \n",tasklet_id, BLOCK_SIZE_LOG2);
     printf("BLOCK_SIZE [%d] =  %d \n",tasklet_id, BLOCK_SIZE);
-    
+    */
 
     // Initialize a local cache in WRAM to store the MRAM block
     T *cache_A = (T *) mem_alloc(BLOCK_SIZE);
@@ -135,27 +140,41 @@ int main_kernel1() {
         // Bound checking
         uint32_t l_size_bytes = (byte_index + BLOCK_SIZE >= input_size_dpu_bytes) ? (input_size_dpu_bytes - byte_index) : BLOCK_SIZE;
 
-        //printf("l_size_bytes [%d] =  %d \n",tasklet_id, l_size_bytes);
-        //printf("byte_index [%d] =  %d \n",tasklet_id, byte_index);
+        printf("l_size_bytes [%d] =  %d \n",tasklet_id, l_size_bytes);
+        printf("byte_index [%d] =  %d \n",tasklet_id, byte_index);
+
+        unsigned int j = tasklet_id + (dpu_nr*tasklet_nr);
+        unsigned int in_byte_index =  (l_size_bytes*j);
+        printf("byte_index [%d] =  %d \n",tasklet_id, in_byte_index);
+        // Load cache with current MRAM block
+        mram_read((__mram_ptr void const*) (mram_base_addr_A + in_byte_index), cache_A, l_size_bytes);    
 
         // Load cache with current MRAM block
-        mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes);                                          // Read CacheA line                                        
-
-        unsigned int j = tasklet_id;
-        for(unsigned int i = 0; i < (BLOCK_SIZE/4);i++){
-            mram_read((__mram_ptr void const*) (mram_base_addr_U + (l_size_bytes*i)), cache_U_aux, l_size_bytes);                            // Read CacheU aux column
-            calc_L_matrix(cache_L, cache_U_aux, cache_A, j, i);
-            mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + byte_index), l_size_bytes);                                           // Save CacheL line
+        //mram_read((__mram_ptr void const*) (mram_base_addr_A + byte_index), cache_A, l_size_bytes);                                          // Read CacheA line                                        
+        //printf("cache_A = %f \n",cache_A[4]);
+        //unsigned int j = tasklet_id;
+        //for(unsigned int i = 0; i < (BLOCK_SIZE/4);i++){
+            mram_read((__mram_ptr void const*) (mram_base_addr_U + (l_size_bytes*i_index)), cache_U_aux, l_size_bytes);                            // Read CacheU aux column
+            calc_L_matrix(cache_L, cache_U_aux, cache_A, j, i_index);
+            mram_write(cache_L, (__mram_ptr void*) (mram_base_addr_L + in_byte_index), l_size_bytes);                                           // Save CacheL line
             
-            barrier_wait(&my_barrier);                                                                                                       // Wait for all the tasklets
+            //barrier_wait(&my_barrier);                                                                                                       // Wait for all the tasklets
+            if (code_part == 0){
+                //printf("byte_index [%d] =  %d \n",tasklet_id, code_part);
+                return 0;
+            }     
 
-            mram_read((__mram_ptr void const*) (mram_base_addr_A + (l_size_bytes*i)), cache_A_inv, l_size_bytes); 
-            mram_read((__mram_ptr void const*) (mram_base_addr_L + (l_size_bytes*i)), cache_L_aux, l_size_bytes);                            // Read Cache L aux line
-            calc_U_matrix(cache_L_aux, cache_U, cache_A_inv, j, i);
-            mram_write(cache_U, (__mram_ptr void*) (mram_base_addr_U + byte_index), l_size_bytes);                                           // Save CacheU line
+            mram_read((__mram_ptr void const*) (mram_base_addr_A + (l_size_bytes*i_index)), cache_A_inv, l_size_bytes); 
+            mram_read((__mram_ptr void const*) (mram_base_addr_L + (l_size_bytes*i_index)), cache_L_aux, l_size_bytes);                            // Read Cache L aux line
+            calc_U_matrix(cache_L_aux, cache_U, cache_A_inv, j, i_index);
+            mram_write(cache_U, (__mram_ptr void*) (mram_base_addr_U + in_byte_index), l_size_bytes);                                           // Save CacheU line
 
-            barrier_wait(&my_barrier);                                                                                                       // Wait for all the tasklets
-        } 
+            //barrier_wait(&my_barrier);  
+            if (code_part == 1){
+                //printf("byte_index [%d] =  %d \n",tasklet_id, code_part);
+                return 0;
+            }                                                                                     
+        
     }
 	
     return 0;

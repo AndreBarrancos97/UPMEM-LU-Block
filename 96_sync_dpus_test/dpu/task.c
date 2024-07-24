@@ -83,6 +83,7 @@ int main_kernel1() {
     uint32_t i_index = DPU_INPUT_ARGUMENTS.i_index;                                                           
     uint32_t code_part = DPU_INPUT_ARGUMENTS.code_part;  
     uint32_t dpu_nr = DPU_INPUT_ARGUMENTS.dpu_nr;  
+    uint32_t tasklet_nr = DPU_INPUT_ARGUMENTS.tasklet_nr;
 
     // Address of the current processing block in MRAM
     uint32_t base_tasklet = (tasklet_id + (dpu_nr*2)) << BLOCK_SIZE_LOG2;
@@ -141,7 +142,7 @@ int main_kernel1() {
         //printf("byte_index [%d] =  %d \n",tasklet_id, byte_index);
         
 
-        unsigned int j = tasklet_id + (dpu_nr*2);
+        unsigned int j = tasklet_id + (dpu_nr*tasklet_nr);
         unsigned int in_byte_index =  (l_size_bytes*j);
         printf("byte_index [%d] =  %d \n",tasklet_id, in_byte_index);
         // Load cache with current MRAM block

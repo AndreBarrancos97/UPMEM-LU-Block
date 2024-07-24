@@ -40,7 +40,10 @@ typedef struct {
 	    kernel1 = 0,
 	    nr_kernels = 1,
 	} kernel;
-    T alpha;
+    uint32_t i_index;
+    uint32_t code_part;
+    uint32_t dpu_nr;
+    uint32_t tasklet_nr;
 } dpu_arguments_t; // Input arguments
 
 typedef struct {

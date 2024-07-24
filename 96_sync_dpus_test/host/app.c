@@ -79,8 +79,8 @@ int main(int argc, char **argv) {
     // Alterar o filename e o Makefile
     // Nr tasklets = Nr de linhas da matriz
     // 2^BLOCK = Nr de elementos na linha * 4 bytes. Ex: BLOCK = 5 -> 2^5 = 64 = 16 elmentos numa linha * 4 bytes.
-    char filename[] = "matrix_4x4_16.txt";
-    //char filename[] = "matrix_8x8_64.txt";
+    //char filename[] = "matrix_4x4_16.txt";
+    char filename[] = "matrix_8x8_64.txt";
     unsigned int input_line_size, input_size;
 
     read_size(filename, &input_line_size);
@@ -176,6 +176,7 @@ int main(int argc, char **argv) {
             input_arguments[i].i_index=i_index;
             input_arguments[i].code_part=code_part;
             input_arguments[i].dpu_nr=i;
+            input_arguments[i].tasklet_nr=NR_TASKLETS;
         }
 
         //input_arguments[nr_of_dpus-1].size=(input_size_8bytes - input_size_dpu_8bytes * (NR_DPUS-1)) * sizeof(T); 
@@ -186,6 +187,7 @@ int main(int argc, char **argv) {
         input_arguments[i].i_index=i_index;
         input_arguments[i].code_part=code_part;
         input_arguments[i].dpu_nr =i;
+        input_arguments[i].tasklet_nr=NR_TASKLETS;
 
         // Start timer (CPU-DPU transfers)
         if(rep >= p.n_warmup)
@@ -258,35 +260,12 @@ int main(int argc, char **argv) {
         i = 0;
         
         // Copy output array
-        // Parallel transfers
+        // Serial transfers
         DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT (dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T) * (2 + i), bufferL + input_size_dpu_8bytes * i,input_size_dpu_8bytes * sizeof(T)));
-            DPU_ASSERT (dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T) * (4 + i), bufferU + input_size_dpu_8bytes * i,input_size_dpu_8bytes * sizeof(T)));
+            DPU_ASSERT (dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T) * (nr_of_dpus + i), bufferL + input_size_dpu_8bytes * i,input_size_dpu_8bytes * sizeof(T)));
+            DPU_ASSERT (dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T) * ((nr_of_dpus*2) + i), bufferU + input_size_dpu_8bytes * i,input_size_dpu_8bytes * sizeof(T)));
         }
-/*        
-        DPU_FOREACH(dpu_set, dpu, i) {
-            printf("%d", dpu);
-	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferL + input_size_dpu_8bytes * i));
-        }
-        DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T) * 2, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-*/
-/*        
-        DPU_FOREACH(dpu_set, dpu, i) {
-	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferL + input_size_dpu_8bytes * 1));
-        }
-        DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T) * 3, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-*/
-/*
-        DPU_FOREACH(dpu_set, dpu, i) {
-	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferU + input_size_dpu_8bytes * 0));
-        }
-        DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T) * 4, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-        
-        DPU_FOREACH(dpu_set, dpu, i) {
-	        DPU_ASSERT (dpu_prepare_xfer (dpu, bufferU + input_size_dpu_8bytes * 1));
-        }
-        DPU_ASSERT (dpu_push_xfer (dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME,  input_size_dpu_8bytes * sizeof(T) * 5, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
- */       
+      
         // Stop timer (DPU-CPU transfers)
         if(rep >= p.n_warmup)
             stop(&timer, 3); 
