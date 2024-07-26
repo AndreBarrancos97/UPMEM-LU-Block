@@ -78,7 +78,7 @@ int main(int argc, char** argv)
 
     //printf("Enter the number of elements: ");
     //scanf("%d", &n);
-	int line = 4096;
+	int line = 256;
 	int size = line * line;
 
 	float *a = (float *)malloc(size * 4);
@@ -95,7 +95,7 @@ int main(int argc, char** argv)
 	print_matrix_2D(a, size, line);
 	printf("\n ****A***** \n");
 
-    saveMatrix("matrix_4096x4096_16777216.txt",size, a, line);
+    saveMatrix("matrix_256x256.txt",size, a, line);
 
 	free(a);
 	return 0;

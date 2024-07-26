@@ -1,12 +1,12 @@
 DPU_DIR := dpu
 HOST_DIR := host
 BUILDDIR ?= bin
-NR_DPUS ?= 4
-NR_TASKLETS ?= 2
-BLOCK ?= 5
+NR_DPUS ?= 64
+NR_TASKLETS ?= 8
+BLOCK ?= 11
 TYPE ?= FLOAT
 TRANSFER ?= PARALLEL
-PRINT ?= 1
+PRINT ?= 0
 PERF ?= NO
 
 define conf_filename
