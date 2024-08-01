@@ -100,7 +100,7 @@ int main_kernel1() {
     */
 
     //printf("tasklet_i[%d] = %d &&&& %d \n", tasklet_id, base_tasklet, base_tasklet1);
-    printf("tasklet_i[%d] = %d \n", tasklet_id, BLOCK_SIZE);
+    //printf("tasklet_i[%d] = %d \n", tasklet_id, BLOCK_SIZE);
 
     // Initialize a local cache in WRAM to store the MRAM block
     T *cache_A = (T *) mem_alloc(BLOCK_SIZE);
