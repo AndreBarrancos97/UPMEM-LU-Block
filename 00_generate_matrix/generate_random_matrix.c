@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-//#define line 4096
-//int size = line * line;
-//float a[size];
-
 void saveMatrix(const char *filename, int size, float *matrix, int line) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
@@ -53,7 +49,7 @@ void random_fill(float *matrix, int size, int line)
 		//printf("%f \n",ao);
 	}
 
-	//Ensure the matrix is diagonal dominant to guarantee invertible-ness
+	//Ensure the matrix is diagonal dominant to guarantee invertibleness
 	//diagCount well help keep track of which column the diagonal is in
 	int diagCount = 0;
     float sum = 0;
@@ -74,19 +70,15 @@ void random_fill(float *matrix, int size, int line)
 
 int main(int argc, char** argv)
 {
-	//float *a;
-
-    //printf("Enter the number of elements: ");
-    //scanf("%d", &n);
-	int line = 256;
+	int line = 128;
 	int size = line * line;
 
 	float *a = (float *)malloc(size * 4);
+	
 	if (a == NULL) {
 			fprintf(stderr, "Memory allocation failed\n");
 			return 1;
 		}
-    //a = (float*) malloc(size * 4);
 
 	//fill a with random values
 	random_fill(a,size,line);
@@ -95,7 +87,7 @@ int main(int argc, char** argv)
 	print_matrix_2D(a, size, line);
 	printf("\n ****A***** \n");
 
-    saveMatrix("matrix_256x256.txt",size, a, line);
+    saveMatrix("matrix_128x128.txt",size, a, line);
 
 	free(a);
 	return 0;

@@ -28,7 +28,7 @@ static T* U_init_inv;
 void print_matrix_2D(T *matrix1, int input_size, int input_line_size, int lu_multiply, bool *status){
     
     if (lu_multiply == 0){
-        for ( int i = 0; i < input_size; i++) {
+        for (int i = 0; i < input_size; i++) {
             printf("%f ",matrix1[i]);
             if((i+1)%input_line_size == 0){
                 printf("\n");
@@ -36,10 +36,10 @@ void print_matrix_2D(T *matrix1, int input_size, int input_line_size, int lu_mul
         }
     }
     else {
-        for (unsigned int i = 0; i < input_line_size; ++i){
-            for (unsigned int i_aux = 0; i_aux < input_line_size; ++i_aux){
+        for (int i = 0; i < input_line_size; ++i){
+            for (int i_aux = 0; i_aux < input_line_size; ++i_aux){
                 float aux_v2 = 0;
-                for (unsigned int j = 0; j < input_line_size; ++j){
+                for (int j = 0; j < input_line_size; ++j){
                     
                     aux_v2 = aux_v2 + L_matrix[i*input_line_size + j]*U_init_inv[j*input_line_size + i_aux];
                 }
@@ -87,9 +87,9 @@ static void read_input( T* A, const char *filename, int nr_elements){
 
 // Main of the Host Application
 int main(int argc, char **argv) {
-    // Alterar o filename e o Makefile
-    // Nr tasklets = Nr de linhas da matriz
-    // 2^BLOCK / 4bytes = Nr de elementos na linha. Ex: BLOCK = 5 -> 2^5 = 32 bytes / 4 bytes = 8 elmentos numa linha.
+    // Change filename and Makefile
+    // Nr tasklets = Nr of matrix lines
+    // 2^BLOCK / 4 bytes = Nr of matrix lines. Ex: BLOCK = 5 -> 2^5 = 32 bytes / 4 bytes = 8 nr of lines.
     
     //char filename[] = "matrix_4x4.txt";
     //char filename[] = "matrix_8x8.txt";
@@ -218,7 +218,7 @@ int main(int argc, char **argv) {
             }
             DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_8bytes * sizeof(T)*2, input_size_8bytes * sizeof(T), DPU_XFER_DEFAULT)); 
             
-            /*
+            /*// Broadcast transfer is slower
             DPU_ASSERT(dpu_broadcast_to(dpu_set, DPU_MRAM_HEAP_POINTER_NAME, 0, bufferA, input_size_8bytes * sizeof(T), DPU_XFER_DEFAULT));
             DPU_ASSERT(dpu_broadcast_to(dpu_set, DPU_MRAM_HEAP_POINTER_NAME, input_size_8bytes * sizeof(T)*1, bufferL, input_size_8bytes * sizeof(T), DPU_XFER_DEFAULT));
             DPU_ASSERT(dpu_broadcast_to(dpu_set, DPU_MRAM_HEAP_POINTER_NAME, input_size_8bytes * sizeof(T)*2, bufferU, input_size_8bytes * sizeof(T), DPU_XFER_DEFAULT));
@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
             DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
 
             // Display DPU logs
-        /*
+            /*
             unsigned int each_dpu = 0;
             printf("Display DPU Logs\n");
             DPU_FOREACH (dpu_set, dpu) {
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
                 DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
                 each_dpu++;
             }
-        */
+            */
                     
             // Retrieve results. Serial transfers.
             DPU_FOREACH(dpu_set, dpu, i) {
@@ -265,10 +265,7 @@ int main(int argc, char **argv) {
 
 	stop(&timer, 0);
     
-    
-
     printf("\n");
-    
     
     // Check output
     bool status = true;
@@ -312,7 +309,7 @@ int main(int argc, char **argv) {
     // Print timing results
     printf("Program finished: ");
     print(&timer, 0, p.n_reps);
-
+    printf("\n");
     // Deallocation
     free(A_matrix);
     free(U_matrix);

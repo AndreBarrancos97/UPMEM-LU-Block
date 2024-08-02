@@ -40,7 +40,6 @@ static void read_size(const char *filename, unsigned int *size){
 
 // Read matrix from file
 static void read_input( float* A, const char *filename, int nr_elements){
-    //float A_init[64] = {48, 7, 8, 6, 4, 6, 7, 3, 10, 49, 3, 8, 1, 10, 4, 7, 1, 7, 51, 7, 2, 9, 8, 10, 3, 1, 3, 44, 8, 6, 10, 3, 3, 9, 10, 8, 46, 7, 2, 3,  10, 4, 2, 10, 5, 53, 9, 5, 6, 1, 4, 7, 2, 1, 30, 4, 3, 1, 7, 2, 6, 6, 5, 36};
     FILE *file = fopen(filename, "r");
         if (file == NULL) {
             perror("Unable to open file for reading");
@@ -62,7 +61,7 @@ void l_u_d(float *a, float *l, float *u, int size, int size_line)
 	//for each column...
 	for (int i = 0; i < size_line; i++)
 	{
-		//for each row....
+		//for each col....
 		for (int j = 0; j < size_line; j++)
 		{
 			//if j is smaller than i, set l[j][i] to 0
@@ -148,7 +147,7 @@ int main() {
 
     printf("\n ********* Upper Matrix ******************** \n");
     
-    print_matrix_2D(U_matrix, input_size, input_line_size,0,&status);                                 // Print U matrix
+    print_matrix_2D(U_matrix, input_size, input_line_size,0,&status);                                    // Print U matrix
     
     printf("********* Upper Matrix ******************** \n");   
 

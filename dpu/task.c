@@ -86,7 +86,6 @@ int main_kernel1() {
 
     // Address of the current processing block in MRAM
     uint32_t base_tasklet = (tasklet_id + (dpu_nr*tasklet_nr)) << BLOCK_SIZE_LOG2;
-    uint32_t base_tasklet1 = (tasklet_id + (dpu_nr*tasklet_nr));
     uint32_t mram_base_addr_A = (uint32_t)DPU_MRAM_HEAP_POINTER;
     uint32_t mram_base_addr_L = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer));
     uint32_t mram_base_addr_U = (uint32_t)(DPU_MRAM_HEAP_POINTER + (input_size_dpu_bytes_transfer*2));
@@ -110,7 +109,7 @@ int main_kernel1() {
 
     /*
     Example:
-        input_size = 64;
+        input_size = 64; 8x8 matrix
         BLOCK = 5;
         BLOCK_SIZE_LOG2 = BLOCK;
         BLOCK_SIZE = (1 << BLOCK_SIZE_LOG2) = 32 bytes;
