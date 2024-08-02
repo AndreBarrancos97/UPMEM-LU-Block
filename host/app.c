@@ -93,11 +93,11 @@ int main(int argc, char **argv) {
     
     //char filename[] = "matrix_4x4.txt";
     //char filename[] = "matrix_8x8.txt";
-    char filename[] = "matrix_16x16.txt";
+    //char filename[] = "matrix_16x16.txt";
     //char filename[] = "matrix_32x32.txt";
     //char filename[] = "matrix_64x64.txt";
     //char filename[] = "matrix_128x128.txt";
-    //char filename[] = "matrix_256x256.txt";
+    char filename[] = "matrix_256x256.txt";
     //char filename[] = "matrix_512x512.txt";
     
     unsigned int input_line_size, input_size;
@@ -264,17 +264,9 @@ int main(int argc, char **argv) {
     }
 
 	stop(&timer, 0);
-    // Print timing results
-    printf("Program finished: ");
-    print(&timer, 0, p.n_reps);
     
-    /*printf("CPU-DPU ");
-    print(&timer, 1, p.n_reps);
-    printf("DPU Kernel ");
-    print(&timer, 2, p.n_reps);
-    printf("DPU-CPU ");
-    print(&timer, 3, p.n_reps);
-    */
+    
+
     printf("\n");
     
     
@@ -316,6 +308,10 @@ int main(int argc, char **argv) {
     } else {
         printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
     }
+
+    // Print timing results
+    printf("Program finished: ");
+    print(&timer, 0, p.n_reps);
 
     // Deallocation
     free(A_matrix);
