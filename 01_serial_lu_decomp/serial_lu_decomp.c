@@ -11,22 +11,20 @@
 #define ANSI_COLOR_GREEN   "\x1b[32m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-void print_matrix_2D(float *matrix1, int input_size, int input_line_size, int lu_multiply, bool *status){
+void print_matrix_2D(float *matrix1, int input_size, int input_line_size, int lu_multiply, bool *status) {
     
-    if (lu_multiply == 0){
+    if (lu_multiply == 0) {
         for ( int i = 0; i < input_size; i++) {
             printf("%f ",matrix1[i]);
-            if((i+1)%input_line_size == 0){
+            if((i+1)%input_line_size == 0) {
                 printf("\n");
             }
         }
-    }
-
-    
+    }   
 }
 
 // Read line size of loaded matrix
-static void read_size(const char *filename, unsigned int *size){
+static void read_size(const char *filename, unsigned int *size) {
     FILE *file = fopen(filename, "r");
         if (file == NULL) {
             perror("Unable to open file for reading");
@@ -39,7 +37,7 @@ static void read_size(const char *filename, unsigned int *size){
 }
 
 // Read matrix from file
-static void read_input( float* A, const char *filename, int nr_elements){
+static void read_input( float* A, const char *filename, int nr_elements) {
     FILE *file = fopen(filename, "r");
         if (file == NULL) {
             perror("Unable to open file for reading");
@@ -56,50 +54,50 @@ static void read_input( float* A, const char *filename, int nr_elements){
 
 }
 
-void l_u_d(float *a, float *l, float *u, int size, int size_line)
-{
-	//for each column...
-	for (int i = 0; i < size_line; i++)
-	{
-		//for each col....
-		for (int j = 0; j < size_line; j++)
-		{
-			//if j is smaller than i, set l[j][i] to 0
-			if (j < i)
-			{
+void l_u_d(float *a, float *l, float *u, int size, int size_line) {
+	
+    //for each column...
+	for (int i = 0; i < size_line; i++) {
+		
+        //for each col....
+		for (int j = 0; j < size_line; j++) {
+			
+            //if j is smaller than i, set l[j][i] to 0
+			if (j < i) {
 				l[(j*size_line) + i] = 0; //[j][i]
                 continue;
 			}
-			//otherwise, do some math to get the right value
+			
+            //otherwise, do some math to get the right value
 			l[(j*size_line) + i] = a[(j*size_line) + i];
-			for (int k = 0; k < i; k++)
-			{
+			
+            for (int k = 0; k < i; k++) {
 				//deduct from the current l cell the value of these 2 values multiplied
 				l[(j*size_line) + i] = l[(j*size_line) + i] - l[(j*size_line) + k] * u[(k*size_line) + i];
 			}
 		}
-		//for each row...
-		for (int j = 0; j < size_line; j++)
-		{
+		
+        //for each row...
+		for (int j = 0; j < size_line; j++) {
+
 			//if j is smaller than i, set u's current index to 0
-			if (j < i)
-			{
+			if (j < i) {
 				u[(i*size_line) + j] = 0;
                 continue;
 			}
+
 			//if they're equal, set u's current index to 1
-			if (j == i)
-			{
+			if (j == i) {
 				u[(i*size_line) + j] = 1;
                 continue;
 			}
+
 			//otherwise, do some math to get the right value
 			u[(i*size_line) + j] = a[(i*size_line) + j] / l[(size_line + 1)*i];
-			for (int k = 0; k < i; k++)
-			{
+
+			for (int k = 0; k < i; k++) {
 				u[(i*size_line) + j] = u[(i*size_line) + j] - ((l[(i*size_line) + k] * u[(k*size_line) + j]) / l[(size_line + 1)*i]);
-			}
-			
+			}	
 		}
 	}
 }
@@ -107,12 +105,12 @@ void l_u_d(float *a, float *l, float *u, int size, int size_line)
 int main() {
 
     //char filename[] = "matrix_4x4.txt";
-    //char filename[] = "matrix_8x8.txt";
+    char filename[] = "matrix_8x8.txt";
     //char filename[] = "matrix_16x16.txt";
     //char filename[] = "matrix_32x32.txt";
     //char filename[] = "matrix_64x64.txt";
     //char filename[] = "matrix_128x128.txt";
-    char filename[] = "matrix_256x256.txt";
+    //char filename[] = "matrix_256x256.txt";
     //char filename[] = "matrix_512x512.txt";
 
     unsigned int input_line_size, input_size;

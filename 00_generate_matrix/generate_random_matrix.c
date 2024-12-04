@@ -70,7 +70,7 @@ void random_fill(float *matrix, int size, int line)
 
 int main(int argc, char** argv)
 {
-	int line = 128;
+	int line = 10;
 	int size = line * line;
 
 	float *a = (float *)malloc(size * 4);
@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 	print_matrix_2D(a, size, line);
 	printf("\n ****A***** \n");
 
-    saveMatrix("matrix_128x128.txt",size, a, line);
+    saveMatrix("matrix_10x10.txt",size, a, line);
 
 	free(a);
 	return 0;
